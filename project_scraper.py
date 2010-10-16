@@ -12,11 +12,7 @@ SITE_URL = 'http://projects.fortworthgov.org'
 MAX_NUM_PHASES = 10
 
 def get_project_html(id):
-    """Get the HTML from a particular project's details page
-    
-    This doesn't work so well because Ft Worth is using some kind of
-    AJAX framework with weird javascript-generated POST parameters.
-    """
+    """Get the HTML from a particular project's details page"""
     url = SITE_URL + '/FindByListProjectDetail.aspx?PID=%05d' % id
     logger.info("getting %s" % url)
     req = Request(url)
