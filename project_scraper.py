@@ -56,7 +56,9 @@ def parse_project(html):
         except IndexError:
             pass
 
+    # TODO: raise exception if project name is 'Label' (ex: pid 00000)
     p['phases'] = phases
+    logger.debug("project: %s" % p)
     return p
 
 def output_csv(projects):
