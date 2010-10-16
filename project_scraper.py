@@ -75,7 +75,6 @@ def get_project(html):
             pass
 
     p['phases'] = phases
-    print p
     return p
 
 projects = []
@@ -85,6 +84,11 @@ projects = []
 #projects = find_projects(projects, html)
 #output_csv(projects)
 
-html = get_project_html(628)
-print html
-project = get_project(html)
+for pid in range(100):
+    try:
+        html = get_project_html(pid)
+        project = get_project(html)
+    except:
+        pass
+
+print projects
