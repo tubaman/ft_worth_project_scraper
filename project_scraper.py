@@ -1,75 +1,61 @@
 #!/usr/bin/env python
-import csv
 import sys
+import logging
+import csv
 from urllib2 import urlopen, Request
 from BeautifulSoup import BeautifulSoup
 
-def output_csv(projects):
-    csv_writer = csv.writer(sys.stdout)
-    csv_writer.writerow(['district', 'name', 'category', 'status', 'details_url'])
-    for p in projects:
-        csv_writer.writerow([p['district'], p['name'], p['category'], p['status'], p['details_url']])
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-def get_projects_html():
-    url = 'http://projects.fortworthgov.org/FindByList.aspx'
-    req = Request(url)
-    response = urlopen(req)
-    html = response.read()
-    return html
+SITE_URL = 'http://projects.fortworthgov.org'
+MAX_NUM_PHASES = 10
 
 def get_project_html(id):
-    url = 'http://projects.fortworthgov.org/FindByListProjectDetail.aspx?PID=%05d' % id
-    print url
+    """Get the HTML from a particular project's details page
+    
+    This doesn't work so well because Ft Worth is using some kind of
+    AJAX framework with weird javascript-generated POST parameters.
+    """
+    url = SITE_URL + '/FindByListProjectDetail.aspx?PID=%05d' % id
+    logger.info("getting %s" % url)
     req = Request(url)
     response = urlopen(req)
     html = response.read()
     return html
 
-def find_projects(projects, html):
-    soup = BeautifulSoup(html)
-    table = soup.find(name='table', attrs={'id': 'ctl00_PageContent_grid_DXMainTable'})
-    #print table
-    rows = table.findAll('tr', attrs={'class': 'dxgvDataRow'})
-    #print rows
-    for row in rows:
-        #print "row: %s" % row
-        cols = row.findAll('td')
-        #print "col num: %s" % len(cols)
-        project = {
-            'district': cols[0].contents[0], 
-            'name': cols[1].contents[0],
-            'category': cols[2].contents[0],
-            'status': cols[3].contents[0],
-            'details_url': cols[4].find('a').attrs[0][1],
-        }
-        #print "project: %s" % project
-        projects.append(project)    
-    return projects
+PROJECT_DATA = {
+    'name': 'lblProjName',
+    'description': 'lblNotes',
+    'number': 'lblProj_id',
+    'district': 'lblDISTRICT',
+    'manager': 'lbProjectManager',
+    'manager_company': 'lblProjectManagerCompany',
+    'manager_email': 'lblProjectManagerEmail',
+    'manager_phone': 'lblProjectManagerPhone',
+    'consultant': 'lblCONSULTANT',
+    'contractor': 'lblCONTRACTOR',
+    'status': 'lblStatus',
+}
 
-
-def get_project(html):
+def parse_project(html):
     soup = BeautifulSoup(html)
+   
     p = {}
-    p['name'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblProjName'}).contents[0]
-    p['description'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblNotes'}).contents[0]
-    p['number'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblProj_id'}).contents[0]
-    p['district'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblDISTRICT'}).contents[0]
-    p['manager'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lbProjectManager'}).contents[0]
-    p['manager_company'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblProjectManagerCompany'}).contents[0]
-    p['manager_email'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblProjectManagerEmail'}).contents[0]
-    p['manager_phone'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblProjectManagerPhone'}).contents[0]
-    p['consultant'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblCONSULTANT'}).contents[0]
-    p['contractor'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblCONTRACTOR'}).contents[0]
-    p['status'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblStatus'}).contents[0]
-    p['status'] = soup.find(name='span', attrs={'id': 'ctl00_PageContent_lblStatus'}).contents[0]
+    for key, label in PROJECT_DATA.items():
+        p[key] = soup.find(name='span', attrs={
+            'id': 'ctl00_PageContent_%s' % label
+        }).contents[0]
 
     phases = []
-    phase_table = soup.find(name='table', attrs={'id': 'ctl00_PageContent_grid_DXMainTable'})
+    phase_table = soup.find(name='table', attrs={
+        'id': 'ctl00_PageContent_grid_DXMainTable'})
     for row in phase_table.findAll('tr'):
         try:
             if 'dxgvDataRow' in row.attrs[1][1]:
                 cols = row.findAll('td')
-                phase = {'name': cols[0].contents[0], 'date': cols[1].contents[0]}
+                phase = {'name': cols[0].contents[0],
+                         'date': cols[1].contents[0]}
                 phases.append(phase)
         except IndexError:
             pass
@@ -77,18 +63,41 @@ def get_project(html):
     p['phases'] = phases
     return p
 
-projects = []
+def output_csv(projects):
+    csv_writer = csv.writer(sys.stdout)
+    project_headers = PROJECT_DATA.keys()
+    phase_headers = []
+    for n in range(MAX_NUM_PHASES):
+        phase_headers.append('phase%d_name' % (n+1))
+        phase_headers.append('phase%d_date' % (n+1))
+    headers = project_headers + phase_headers
+    csv_writer.writerow(headers)
+    for p in projects:
+        project_data = [p[k] for k in project_headers]
+        phase_data = []
+        for phase in p['phases'][:MAX_NUM_PHASES]:
+            phase_data.append(phase['name'])
+            phase_data.append(phase['date'])
+        data = project_data + phase_data
+        csv_writer.writerow(data)
 
-# Here's the main code
-#html = get_projects_html()
-#projects = find_projects(projects, html)
-#output_csv(projects)
+def main():
+    projects = []
 
-for pid in range(100):
-    try:
-        html = get_project_html(pid)
-        project = get_project(html)
-    except:
-        pass
+    for pid in range(100):
+        try:
+            html = get_project_html(pid)
+            project = parse_project(html)
+            projects.append(project)
+        except:
+            pass
 
-print projects
+    #html = get_project_html(84)
+    #project = parse_project(html)
+    #projects.append(project)
+
+    output_csv(projects)
+
+if __name__ == '__main__':
+    logging.basicConfig()
+    main()
