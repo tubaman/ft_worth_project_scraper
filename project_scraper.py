@@ -1,8 +1,5 @@
 #!/usr/bin/env python
-import sys
-import logging
-import csv
-import re
+import sys, logging, csv, re, time
 from urllib2 import urlopen, Request
 from BeautifulSoup import BeautifulSoup
 
@@ -10,6 +7,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 SITE_URL = 'http://projects.fortworthgov.org'
+MAX_PIDS = 2000
+INTER_PROJECT_POLL_DELAY = 1 # secs
 MAX_NUM_PHASES = 10
 MAX_NUM_POINTS = 15
 
@@ -131,13 +130,14 @@ def output_csv(projects):
 def main():
     projects = []
 
-    for pid in range(100):
-       try:
+    for pid in range(MAX_PIDS):
+        try:
             html = get_project_html(pid)
             project = parse_project(html)
             projects.append(project)
         except:
             pass
+        time.sleep(INTER_PROJECT_POLL_DELAY)
 
     #html = get_project_html(414)
     #project = parse_project(html)
