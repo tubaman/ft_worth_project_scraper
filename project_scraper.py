@@ -21,19 +21,19 @@ def get_project_html(id):
     html = response.read()
     return html
 
-PROJECT_DATA = {
-    'name': 'lblProjName',
-    'description': 'lblNotes',
-    'number': 'lblProj_id',
-    'district': 'lblDISTRICT',
-    'manager': 'lbProjectManager',
-    'manager_company': 'lblProjectManagerCompany',
-    'manager_email': 'lblProjectManagerEmail',
-    'manager_phone': 'lblProjectManagerPhone',
-    'consultant': 'lblCONSULTANT',
-    'contractor': 'lblCONTRACTOR',
-    'status': 'lblStatus',
-}
+PROJECT_DATA = [
+    ('number', 'lblProj_id'),
+    ('name', 'lblProjName'),
+    ('district', 'lblDISTRICT'),
+    ('description', 'lblNotes'),
+    ('manager', 'lbProjectManager'),
+    ('manager_company', 'lblProjectManagerCompany'),
+    ('manager_email', 'lblProjectManagerEmail'),
+    ('manager_phone', 'lblProjectManagerPhone'),
+    ('consultant', 'lblCONSULTANT'),
+    ('contractor', 'lblCONTRACTOR'),
+    ('status', 'lblStatus'),
+]
 
 class ProjectParseError(Exception): pass
 
@@ -41,7 +41,7 @@ def parse_project(html):
     soup = BeautifulSoup(html)
    
     p = {}
-    for key, label in PROJECT_DATA.items():
+    for key, label in PROJECT_DATA:
         p[key] = soup.find(name='span', attrs={
             'id': 'ctl00_PageContent_%s' % label
         }).contents[0]
@@ -93,7 +93,7 @@ def find_geodata_in_script(script):
 
 def output_csv(projects):
     csv_writer = csv.writer(sys.stdout)
-    project_headers = PROJECT_DATA.keys()
+    project_headers = [d[0] for d in PROJECT_DATA]
     phase_headers = []
     for n in range(MAX_NUM_PHASES):
         phase_headers.append('phase%d_name' % (n+1))
@@ -139,6 +139,7 @@ def main():
             pass
         time.sleep(INTER_PROJECT_POLL_DELAY)
 
+    ## for testing
     #html = get_project_html(414)
     #project = parse_project(html)
     #projects.append(project)
